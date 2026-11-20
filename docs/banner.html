@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>POGflow banner: the slam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Knewave&family=IBM+Plex+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+html, body { margin: 0; background: #1c1b1e; }
+svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="banner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 480" width="1280" height="480"></svg>
+<script>
+// One picture: the wordmark, and a gloved hand bringing a foil slammer down on a stack of caps.
+// Printed toy-card look: spot colours a little off the black plate, halftone dots, paper grain.
+const C = { table: '#27242b', card: '#f0e7d0', paper: '#fbf6e8', k: '#1c1b1f',
+            m: '#e6257f', c: '#14a7c0', y: '#ffcf1f', yl: '#ffe88a' };
+const F = { disp: "'Bowlby One','Arial Black',Impact,sans-serif",
+            brush: "'Knewave','Marker Felt','Brush Script MT',cursive",
+            mono: "'IBM Plex Mono',Menlo,Consolas,monospace" };
+const OFF = {}; OFF[C.m] = [2.2, 1.5]; OFF[C.c] = [-2, 1.4]; OFF[C.y] = [1.5, -1.7]; OFF[C.yl] = [1.5, -1.7];
+
+const f = n => +(+n).toFixed(2);
+const circ = (cx, cy, r) => `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"`;
+const ell = (cx, cy, rx, ry) => `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}"`;
+const P = d => `<path d="${d}"`;
+const R = (x, y, w, h, rx = 0) => `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="${rx}"`;
+function ink(shape, color, extra = '') {
+  const o = OFF[color], s = `${shape} fill="${color}" ${extra}/>`;
+  return o ? `<g transform="translate(${o[0]},${o[1]})">${s}</g>` : s;
+}
+function ln(shape, sw = 4, extra = '') {
+  return `${shape} fill="none" stroke="${C.k}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round" ${extra}/>`;
+}
+const paper = shape => `${shape} fill="${C.paper}"/>`;
+const both = (shape, color, sw = 4, extra = '') => paper(shape) + ink(shape, color) + ln(shape, sw, extra);
+const halo = (shape, w = 12) => `${shape} fill="${C.paper}" stroke="${C.paper}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`;
+function halftone(x0, y0, x1, y1, step, ang, rfn, color, extra = '') {
+  const a = ang * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, RR = Math.hypot(x1 - x0, y1 - y0) / 2 + step;
+  let s = '';
+  for (let u = -RR; u <= RR; u += step) for (let v = -RR; v <= RR; v += step) {
+    const x = cx + u * ca - v * sa, y = cy + u * sa + v * ca;
+    if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    const r = rfn(x, y);
+    if (r > 0.35) s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`;
+  }
+  const o = OFF[color] || [0, 0];
+  return `<g fill="${color}" transform="translate(${o[0]},${o[1]})" ${extra}>${s}</g>`;
+}
+function starPts(cx, cy, ro, ri, n, rot = 0) {
+  const p = [];
+  for (let i = 0; i < 2 * n; i++) {
+    const a = (rot + i * 180 / n) * Math.PI / 180, r = i % 2 ? ri : ro;
+    p.push(`${f(cx + r * Math.cos(a))},${f(cy + r * Math.sin(a))}`);
+  }
+  return `<polygon points="${p.join(' ')}"`;
+}
+// an uneven comic flash; side > 0 fills in the valleys toward the left and right ends,
+// so a wide flash keeps fat spikes there instead of needles
+function flash(cx, cy, rx, ry, n, kin, rot = -90, side = 0) {
+  const p = [];
+  for (let i = 0; i < 2 * n; i++) {
+    const a = (rot + i * 180 / n) * Math.PI / 180, j = i >> 1;
+    const k = i % 2 ? kin + side * Math.cos(a) ** 2 + 0.06 * ((j * 3) % 4) / 3 : 0.8 + 0.2 * ((j * 7 + 2) % 5) / 4;
+    p.push(`${f(cx + rx * k * Math.cos(a))},${f(cy + ry * k * Math.sin(a))}`);
+  }
+  return `<polygon points="${p.join(' ')}"`;
+}
+// a tapered ink stroke, fat at (x0,y0)
+function taper(x0, y0, x1, y1, w = 6, col = C.k) {
+  const L = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / L * w / 2, ny = (x1 - x0) / L * w / 2;
+  return `<polygon points="${f(x0 + nx)},${f(y0 + ny)} ${f(x0 - nx)},${f(y0 - ny)} ${f(x1 - nx * 0.12)},${f(y1 - ny * 0.12)} ${f(x1 + nx * 0.12)},${f(y1 + ny * 0.12)}" fill="${col}" stroke="${col}" stroke-width="1" stroke-linejoin="round"/>`;
+}
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+
+let defs = '', S = '';
+
+// a cap seen from the side: wall + top face
+function disc(cx, cy, rx, ry, t, wall = C.paper, top = C.paper, sw = 3.5) {
+  const d = `M${f(cx - rx)},${f(cy)} v${t} a${rx},${ry} 0 0 0 ${2 * rx},0 v${-t} a${rx},${ry} 0 0 1 ${-2 * rx},0 z`;
+  return paper(P(d)) + (wall === C.paper ? '' : ink(P(d), wall)) + ln(P(d), sw) +
+    paper(ell(cx, cy, rx, ry)) + (top === C.paper ? '' : ink(ell(cx, cy, rx, ry), top)) + ln(ell(cx, cy, rx, ry), sw);
+}
+// the print on a cap's face: "#", a title bar and four lines (nobody has to read it)
+function facePrint(r, col) {
+  const w = r * 0.5;
+  let s = `<text x="${f(-w - 2)}" y="${f(-r * 0.2)}" font-family="${F.mono}" font-weight="700" font-size="${f(r * 0.48)}" fill="${C.m}">#</text>`;
+  s += `<path d="M${f(-w + r * 0.36)},${f(-r * 0.36)} h${f(r * 0.56)}" stroke="${col}" stroke-width="${f(r * 0.13)}" stroke-linecap="round"/>`;
+  const ws = [0.95, 0.7, 1.0, 0.6];
+  for (let i = 0; i < 4; i++)
+    s += `<path d="M${f(-w)},${f(-r * 0.04 + i * r * 0.2)} h${f(2 * w * ws[i])}" stroke="${col}" stroke-width="${f(r * 0.085)}" stroke-linecap="round"/>`;
+  return s;
+}
+// a cap in the air, caught mid-tumble: r its radius, k the minor/major axis of its face (0 = edge-on,
+// 1 = full face), rot its rotation; face=false shows its back (dots, a ring and the "#")
+function flyCap(cx, cy, r, k, rot, rim, face = true, T = 11) {
+  const rx = r, ry = Math.max(r * k, 2.5), th = f(T * Math.sqrt(1 - k * k)), sw = 4.2;
+  const wall = `M${f(cx - rx)},${f(cy)} v${th} a${rx},${f(ry)} 0 0 0 ${2 * rx},0 v${-th} a${rx},${f(ry)} 0 0 1 ${-2 * rx},0 z`;
+  let s = `<g transform="rotate(${rot} ${cx} ${cy})">`;
+  s += halo(P(wall), 12) + halo(ell(cx, cy, rx, ry), 12);
+  s += both(P(wall), rim, sw);
+  if (face) {
+    s += both(ell(cx, cy, rx, ry), rim, sw);
+    if (k > 0.2) {
+      s += paper(ell(cx, cy, rx * 0.78, ry * 0.78)) + ln(ell(cx, cy, rx * 0.78, ry * 0.78), 2.4);
+      s += `<g transform="translate(${cx},${cy}) scale(1,${f(ry / rx)})">${facePrint(rx * 0.78, C.k)}</g>`;
+    } else {
+      // nearly edge-on: a sliver of the cream face inside its coloured border
+      s += paper(ell(cx, cy - ry * 0.12, rx * 0.84, ry * 0.56)) + ln(ell(cx, cy - ry * 0.12, rx * 0.84, ry * 0.56), 2);
+    }
+  } else {
+    const id = 'fc' + Math.round(cx) + '_' + Math.round(cy);
+    defs += `<clipPath id="${id}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${f(ry)}"/></clipPath>`;
+    s += paper(ell(cx, cy, rx, ry));
+    s += halftone(cx - rx, cy - ry, cx + rx, cy + ry, 7, 30, (x, y) => 2.6 * clamp((y - cy + ry * 0.4) / (ry * 1.3)), C.k, `clip-path="url(#${id})" opacity=".55"`);
+    if (k > 0.3) {
+      s += ln(ell(cx, cy, rx * 0.8, ry * 0.8), 2.4);
+      s += `<g transform="translate(${cx},${cy}) scale(1,${f(ry / rx)})"><text x="0" y="${f(r * 0.24)}" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="${f(r * 0.72)}" fill="${C.m}">#</text></g>`;
+    }
+    s += ln(ell(cx, cy, rx, ry), sw);
+  }
+  return s + '</g>';
+}
+
+// a tapered ink stroke along a quadratic curve, fat at p0
+function swoosh(p0, pc, p1, w0, w1 = 1.2, col = C.k) {
+  const N = 16, L = [], Rr = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, u = 1 - t;
+    const x = u * u * p0[0] + 2 * u * t * pc[0] + t * t * p1[0], y = u * u * p0[1] + 2 * u * t * pc[1] + t * t * p1[1];
+    const dx = u * (pc[0] - p0[0]) + t * (p1[0] - pc[0]), dy = u * (pc[1] - p0[1]) + t * (p1[1] - pc[1]);
+    const l = Math.hypot(dx, dy), w = (w0 + (w1 - w0) * t) / 2;
+    L.push(`${f(x - dy / l * w)},${f(y + dx / l * w)}`); Rr.unshift(`${f(x + dy / l * w)},${f(y - dx / l * w)}`);
+  }
+  const pts = `<polygon points="${L.concat(Rr).join(' ')}"`;
+  return `${pts} fill="${C.paper}" stroke="${C.paper}" stroke-width="9" stroke-linejoin="round"/>${pts} fill="${col}" stroke="${col}" stroke-width="1" stroke-linejoin="round"/>`;
+}
+
+// =============================================================================================
+// positions (card units)
+// =============================================================================================
+const IX = 722, IY = 378;                   // where the slammer meets the stack
+const CRX = 90, CRY = 26, CT = 10;          // a cap lying on the table: radii and thickness
+const SLX = 720, SLY = 314, TILT = -12;     // slammer: centre of its top face; leading edge down
+const ANG = 144;                            // the throw runs from the top right corner down-left
+const WX = 1004, WY = 124, HS = 1.07;         // wrist centre and the hand's scale
+// the arm's frame: origin at the wrist, +x along the fingers (the throw), -y the thumb side
+const arm = s => `<g transform="translate(${WX},${WY}) rotate(${ANG}) scale(${HS})">${s}</g>`;
+
+// =============================================================================================
+// 1. GROUND: teal band breaking into halftone
+// =============================================================================================
+S += ink(R(-6, -6, 1294, 176), C.c);
+S += halftone(0, 164, 1280, 262, 9, 45, (x, y) => 5.6 * (1 - (y - 166) / 94), C.c);
+
+// =============================================================================================
+// 2. IMPACT BURST, centred on the contact
+// =============================================================================================
+{
+  const BX = IX - 6, BY = IY - 6;
+  const outer = flash(BX, BY, 440, 178, 16, 0.56, -90, 0.17);
+  const inner = flash(BX + 10, BY + 4, 252, 108, 15, 0.7, -78);
+  let b = `<g transform="translate(6,7)">${outer} fill="${C.k}"/></g>`;
+  b += both(outer, C.y, 4.8);
+  defs += `<clipPath id="burstC">${outer}/></clipPath>`;
+  b += halftone(BX - 450, BY - 180, BX + 450, 480, 9.6, 28,
+    (x, y) => 4.3 * clamp((Math.hypot((x - BX - 10) * 0.42, y - BY) - 84) / 84), C.m,
+    'clip-path="url(#burstC)" style="mix-blend-mode:multiply"');
+  b += ln(outer, 4.8);
+  b += both(inner, C.yl, 3.6);
+  S += b;
+}
+
+// =============================================================================================
+// 3. CAPS IN THE AIR: the stack bursts up and out, each cap caught at its own point of a tumble
+// =============================================================================================
+// x, y, radius (nearer = bigger), k = minor/major axis (0 edge-on, 1 full face), rotation, rim, face up?
+// len/bow/offs: its motion marks, short curved strokes trailing behind it on the way back to the impact
+const caps = [
+  { x: 138, y: 340, r: 84, k: 0.72, rot: -58, rim: C.c, face: true, len: 58, bow: [0, -9], offs: [-26, 0, 26] },
+  { x: 348, y: 404, r: 84, k: 0.16, rot: 24, rim: C.m, face: true, len: 50, bow: [0, -8], offs: [-11, 11] },
+  { x: 428, y: 300, r: 80, k: 0.6, rot: -50, rim: C.y, face: false, len: 38, bow: [0, -7], offs: [-14, 12] },
+  { x: 580, y: 298, r: 76, k: 0.42, rot: -62, rim: C.c, face: true, len: 0, bow: [0, 0], offs: [] },
+  { x: 800, y: 102, r: 50, k: 0.35, rot: -75, rim: C.m, face: true, len: 50, bow: [6, 0], offs: [-9, 9] },
+  { x: 1140, y: 382, r: 86, k: 0.62, rot: 28, rim: C.c, face: true, len: 58, bow: [0, -9], offs: [-16, 14] },
+  { x: 1168, y: 232, r: 68, k: 0.14, rot: -55, rim: C.y, face: false, len: 46, bow: [0, -8], offs: [-10, 10] },
+];
+function arcs(c) {
+  const dx = IX - c.x, dy = IY - c.y, L = Math.hypot(dx, dy), ex = dx / L, ey = dy / L, nx = -ey, ny = ex;
+  const th = Math.atan2(ey, ex) - c.rot * Math.PI / 180;
+  const reach = Math.hypot(c.r * Math.cos(th), c.r * c.k * Math.sin(th)) + 22;   // the cap's edge on the impact side
+  let s = '';
+  c.offs.forEach((o, i) => {
+    const g = reach + (i % 2) * 10, l = c.len * (i % 2 ? 0.7 : 1);
+    const p0 = [c.x + ex * g + nx * o, c.y + ey * g + ny * o];
+    const p1 = [c.x + ex * (g + l) + nx * o * 0.6, c.y + ey * (g + l) + ny * o * 0.6];
+    const pc = [(p0[0] + p1[0]) / 2 + c.bow[0], (p0[1] + p1[1]) / 2 + c.bow[1]];
+    s += swoosh(p0, pc, p1, i % 2 ? 7 : 10);
+  });
+  return s;
+}
+for (const c of caps) S += arcs(c);
+for (const c of caps) S += flyCap(c.x, c.y, c.r, c.k, c.rot, c.rim, c.face);
+
+// =============================================================================================
+// 4. WHAT IS LEFT OF THE STACK: three caps, knocked apart
+// =============================================================================================
+{
+  let a = '';
+  a += disc(732, 421, CRX, CRY, CT, C.c, C.paper, 4.2);
+  // the second cap, squeezed out to the left under the slammer's leading edge
+  {
+    const x = 690, y = 410, k = 0.8;
+    let t = disc(x, y, CRX, CRY, CT, C.paper, C.m, 4.2);
+    t += paper(ell(x, y, CRX * k, CRY * k)) + ln(ell(x, y, CRX * k, CRY * k), 2.4);
+    a += `<g transform="rotate(5 ${x} ${y})">${t}</g>`;
+  }
+  // the top cap, levered up: one edge pinned under the slammer, the other kicked into the air
+  {
+    const x = 818, y = 374, ry = 30, k = 0.8;
+    let t = disc(x, y, CRX, ry, CT, C.m, C.c, 4.2);
+    t += paper(ell(x, y, CRX * k, ry * k)) + ln(ell(x, y, CRX * k, ry * k), 2.4);
+    t += `<g transform="translate(${x},${y}) scale(1,${f(ry / CRX)})">${facePrint(CRX * k, C.k)}</g>`;
+    a += `<g transform="rotate(-31 ${x} ${y})">${halo(ell(x, y, CRX, ry), 10)}${t}</g>`;
+  }
+  S += a;
+}
+
+// =============================================================================================
+// 5. THE SLAM: the foil slammer on the stack, the open hand that threw it, the sleeve
+// =============================================================================================
+{
+  // --- the smear from the fingertips to the slammer (drawn first: it tucks under the rim)
+  let sm = '';
+  for (const [y, x0, x1, w, col] of [[-40, 316, 210, 12, C.k], [-26, 310, 226, 5, C.paper], [-10, 320, 204, 14, C.k],
+                                     [6, 312, 224, 5, C.paper], [22, 318, 208, 12, C.k], [36, 308, 198, 5, C.paper]])
+    sm += taper(x0, y, x1, y, w, col);
+  S += arm(sm);
+
+  // --- the slammer: a thick foil puck, tilted with the throw, its leading edge in the stack
+  {
+    let a = '';
+    const RX = 100, RY = 29, WH = 36;
+    const wallD = `M${-RX},0 v${WH} a${RX},${RY} 0 0 0 ${2 * RX},0 v${-WH} a${RX},${RY} 0 0 1 ${-2 * RX},0 z`;
+    const dieD = `M${-RX + 8},${WH} v10 a${RX - 8},${RY - 2} 0 0 0 ${2 * RX - 16},0 v-10 z`;
+    defs += `<linearGradient id="foilH" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#8d93a1"/><stop offset=".1" stop-color="#f4f6f8"/><stop offset=".24" stop-color="#9fe3ec"/><stop offset=".4" stop-color="#ffffff"/><stop offset=".56" stop-color="#f6b3d2"/><stop offset=".72" stop-color="#fff0a0"/><stop offset=".88" stop-color="#f4f6f8"/><stop offset="1" stop-color="#8d93a1"/></linearGradient>`;
+    a += halo(P(dieD), 12) + halo(P(wallD), 12) + halo(ell(0, 0, RX, RY), 12);
+    a += both(P(dieD), C.m, 4);
+    a += `${P(wallD)} fill="url(#foilH)"/>` + ln(P(wallD), 5);
+    a += ln(P(`M${-RX + 4},${WH - 5} a${RX - 4},${RY - 1} 0 0 0 ${2 * RX - 8},0`), 1.8, 'opacity=".45"');
+    a += `<text x="14" y="${RY + WH - 8}" text-anchor="middle" font-family="${F.disp}" font-size="25" fill="${C.k}">/slam</text>`;
+    a += both(ell(0, 0, RX, RY), C.y, 5);
+    defs += `<clipPath id="slTop"><ellipse cx="0" cy="0" rx="${RX}" ry="${RY}"/></clipPath>`;
+    a += halftone(-RX, -RY, RX, RY, 7, 30, (x, y) => 2.6 * clamp((x + 20) / 100), C.m, 'clip-path="url(#slTop)" style="mix-blend-mode:multiply"');
+    a += ln(ell(0, 0, RX - 10, RY - 4), 2.4) + ln(ell(0, 0, RX, RY), 5);
+    // glints on the foil
+    a += `${starPts(RX - 8, WH + 14, 22, 5, 4, 0)} fill="${C.paper}" stroke="${C.k}" stroke-width="2.8" stroke-linejoin="round"/>`;
+    a += `${starPts(-RX + 6, WH + 22, 13, 3.2, 4, 0)} fill="${C.paper}" stroke="${C.k}" stroke-width="2.4" stroke-linejoin="round"/>`;
+    S += `<g transform="translate(${SLX},${SLY}) rotate(${TILT})">${a}</g>`;
+  }
+  // the knock: ticks off the kicked-up cap and beside the leading edge
+  S += taper(912, 316, 950, 296, 8) + taper(918, 338, 962, 332, 6.5);
+  S += taper(586, 402, 540, 392, 8) + taper(588, 424, 548, 428, 6.5);
+
+  // --- the arm, in its own frame
+  let a = '';
+  // speed lines beside the sleeve: the arm is still coming down
+  let sp = '';
+  for (const [y, x0, x1, w] of [[80, 30, -170, 9], [100, 84, -60, 5], [-92, -90, -330, 9], [-112, -150, -300, 5]])
+    sp += taper(x0, y, x1, y, w);
+  for (const [y, x0, x1, w] of [[90, -6, -140, 4.5], [-102, -170, -320, 4.5]])
+    sp += taper(x0, y, x1, y, w, C.paper);
+  a += sp;
+
+  // sleeve: cloth around the forearm, narrowing to the wrist, running off the top right corner
+  const sleeve = 'M-14,-28 C-80,-33 -180,-43 -420,-56 L-420,56 C-180,43 -80,33 -14,28 Z';
+  defs += `<clipPath id="slvC"><path d="${sleeve}"/></clipPath>`;
+  a += halo(P(sleeve), 10) + both(P(sleeve), C.m, 4) +
+    halftone(-420, -60, -8, 4, 7.5, 30, (x, y) => 3.1 * clamp((-y / (28 + 0.075 * -x) - 0.1) / 0.8), C.k, 'clip-path="url(#slvC)" opacity=".6"') +
+    ln(P(sleeve), 4) +
+    ln(P('M-60,9 C-130,14 -230,19 -400,24'), 2.6) +
+    ln(P('M-36,-28 q-12,9 -9,24'), 3) + ln(P('M-52,-3 q-10,9 -5,22'), 3) + ln(P('M-35,15 q-12,3 -17,16'), 3) +
+    ln(P('M-150,-40 q-16,20 -7,42'), 2.6);
+
+  // the glove, seen on its back: palm, three fingers together along the throw, a short thumb off the side by the wrist
+  const OW = 3.8, FW = 30, TW = 28, rad = d => d * Math.PI / 180;
+  // a digit: a fat round-ended stroke from its root (x,y) along a, bent by b at the joint after l1
+  function digit(x, y, a, l1, l2, b) {
+    const c = Math.cos(rad(a)), s = Math.sin(rad(a)), c2 = Math.cos(rad(a + b)), s2 = Math.sin(rad(a + b));
+    const jx = x + l1 * c, jy = y + l1 * s;
+    return { d: `M${f(x - 14 * c)},${f(y - 14 * s)} L${f(jx - 12 * c)},${f(jy - 12 * s)} Q${f(jx)},${f(jy)} ${f(jx + 12 * c2)},${f(jy + 12 * s2)} L${f(jx + l2 * c2)},${f(jy + l2 * s2)}`,
+             x, y, a, jx, jy, c, s };
+  }
+  const ring = digit(93, 34, 2.5, 38, 27, -9), mid = digit(100, 0, 0, 42, 30, -9), index = digit(94, -34, -2.5, 38, 26, -9);
+  const thumb = digit(22, -24, -58, 50, 28, 34);
+  const palm = 'M-8,23 C6,25 14,40 34,46 C54,51 80,52 96,50 L104,34 L107,0 L104,-34 L96,-49 C76,-48 58,-45 44,-41 C24,-35 8,-27 -8,-23 Z';
+  const parts = [[ring.d, FW], [mid.d, FW], [index.d, FW], [thumb.d, TW], [palm, 0]];
+  const lay = (col, grow) => parts.map(([d, w]) => w
+    ? `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w + grow}" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<path d="${d}" fill="${col}" stroke="${col}" stroke-width="${grow}" stroke-linejoin="round"/>`).join('');
+  a += lay(C.paper, 2 * OW + 9) + lay(C.k, 2 * OW) + lay(C.paper, 0);
+  defs += `<mask id="gloveM" maskUnits="userSpaceOnUse" x="-40" y="-140" width="280" height="260">${lay('#fff', 0)}</mask>`;
+  // shade: grey dots on the thumb side and under the cuff
+  a += `<g mask="url(#gloveM)" opacity=".42">` + halftone(-10, -112, 210, 60, 6.2, 30,
+    (x, y) => 1.9 * Math.max(clamp((-y - 36 - 0.08 * x) / 30), 0.9 * clamp((24 - x) / 20) * clamp((30 - y) / 40)), C.k) + '</g>';
+  // knuckle arcs at the finger roots, the three darts on the back
+  for (const d of [ring, mid, index]) {
+    const px = -d.s, py = d.c;
+    a += ln(P(`M${f(d.x - 5 * d.c + 10 * px)},${f(d.y - 5 * d.s + 10 * py)} Q${f(d.x + 5 * d.c)},${f(d.y + 5 * d.s)} ${f(d.x - 5 * d.c - 10 * px)},${f(d.y - 5 * d.s - 10 * py)}`), 2.8);
+  }
+  a += ln(P('M42,-40 Q36,-33 36,-24'), 2.8);                                   // the web where the thumb leaves the palm
+  a += ln(P(`M${f(thumb.jx + 13)},${f(thumb.jy + 2)} q-9,-1 -14,-9`), 2.6);       // the crease at the thumb's joint
+  a += ln(P('M30,-17 L68,-20 M32,1 L74,1 M30,19 L68,22'), 3.2);
+
+  // the cuff: a roll around the wrist, square to the forearm
+  const cuff = 'M-24,-39 C-6,-41 5,-39 6,-30 Q11,0 6,30 C5,39 -6,41 -24,39 C-33,39 -33,30 -31,24 Q-26,0 -31,-24 C-33,-30 -33,-39 -24,-39 Z';
+  a += halo(P(cuff), 8) + paper(P(cuff)) + ln(P(cuff), 2 * OW) + paper(P(cuff)) + ln(P('M-14,-29 Q-9,0 -14,29'), 2.6);
+  S += arm(a);
+}
+
+// =============================================================================================
+// 6. WORDMARK
+// =============================================================================================
+{
+  const wm = (fp, ff, attrs) => `<text x="46" y="110" font-size="108" ${attrs}><tspan font-family="${F.disp}" fill="${fp}">POG</tspan><tspan font-family="${F.brush}" font-size="110" dx="2" dy="0" fill="${ff}">flow</tspan></text>`;
+  let a = `<g id="wm" transform="translate(-30,16) scale(1.4) rotate(-2.4 300 80)">`;
+  const st = (c, w) => `stroke="${c}" stroke-width="${w}" stroke-linejoin="round" paint-order="stroke"`;
+  a += `<g transform="translate(5,5)">${wm(C.card, C.card, st(C.card, 20))}</g>`;
+  for (let i = 9; i >= 1; i--) a += `<g transform="translate(${i},${i})">${wm(C.k, C.k, st(C.k, 7))}</g>`;
+  a += wm(C.k, C.k, st(C.k, 7));
+  // solid counters in O and G (placed from the glyph extents once the font is in)
+  a += `<ellipse id="cO" cx="176" cy="72" rx="13" ry="22" fill="${C.k}"/><ellipse id="cG" cx="262" cy="72" rx="13" ry="20" fill="${C.k}"/>`;
+  a += `<text id="wmM" x="46" y="110" font-size="108" font-family="${F.disp}" visibility="hidden">POG</text>`;
+  a += `<g transform="translate(1.6,-1.4)">${wm(C.y, C.paper, '')}</g>`;
+  defs += `<clipPath id="wmP"><text x="46" y="110" font-size="108" font-family="${F.disp}">POG</text></clipPath>`;
+  a += `<g transform="translate(1.6,-1.4)">` + halftone(40, 24, 330, 116, 5.6, 30, (x, y) => 2.9 * clamp((y - 56) / 56), C.m, 'clip-path="url(#wmP)" style="mix-blend-mode:multiply"') + '</g>';
+  defs += `<clipPath id="wmF"><text x="46" y="110" font-size="108"><tspan font-family="${F.disp}" visibility="hidden">POG</tspan><tspan font-family="${F.brush}" font-size="110" dx="2" dy="0">flow</tspan></text></clipPath>`;
+  a += `<g transform="translate(1.6,-1.4)">` + halftone(300, 10, 560, 130, 5.6, 30, (x, y) => 2.7 * clamp((y - 62) / 56), C.m, 'clip-path="url(#wmF)" style="mix-blend-mode:multiply"') + '</g>';
+  a += `<g clip-path="url(#wmP)"><path d="M40,42 H330" stroke="${C.paper}" stroke-width="5" opacity=".9"/><path d="M40,51 H330" stroke="${C.paper}" stroke-width="1.8" opacity=".9"/></g>`;
+  S += a + '</g>';
+}
+
+// =============================================================================================
+// ASSEMBLE: table, card, print, hang-hole, paper grain and light
+// =============================================================================================
+defs += `<clipPath id="cardC"><rect x="6" y="6" width="1268" height="468" rx="13"/></clipPath>`;
+defs += `<filter id="soft" x="-5%" y="-10%" width="110%" height="120%"><feGaussianBlur stdDeviation="4"/></filter>`;
+defs += `<filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 0.25  0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 1.1 -0.42"/></filter>`;
+defs += `<linearGradient id="light" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#2a1a05" stop-opacity=".14"/></linearGradient>`;
+const hole = 'M612,28 h17 a13,13 0 0 1 22,0 h17 a7,7 0 0 1 0,14 h-56 a7,7 0 0 1 0,-14 z';
+let out = `<defs>${defs}</defs>`;
+out += `<rect width="1280" height="480" fill="${C.table}"/>`;
+out += `<rect x="11" y="13" width="1266" height="466" rx="13" fill="#000" opacity=".6" filter="url(#soft)"/>`;
+out += `<rect x="6" y="6" width="1268" height="468" rx="13" fill="${C.card}"/>`;
+out += `<g clip-path="url(#cardC)">${S}`;
+out += `<rect x="6" y="6" width="1268" height="468" filter="url(#grain)" opacity=".3" style="mix-blend-mode:multiply"/>`;
+out += `<rect x="6" y="6" width="1268" height="468" fill="url(#light)"/>`;
+out += `</g>`;
+out += `<path id="hole" d="${hole}" fill="${C.table}"/><path d="${hole}" fill="none" stroke="#000" stroke-width="2.5" opacity=".35" transform="translate(0,1.5)"/>`;
+out += `<path d="${hole}" fill="none" stroke="${C.card}" stroke-width="1" opacity=".8" transform="translate(0,-0.5)"/>`;
+out += `<rect x="6.5" y="6.5" width="1267" height="467" rx="13" fill="none" stroke="#fff" stroke-opacity=".35"/>`;
+document.getElementById('banner').innerHTML = out;
+document.fonts.ready.then(() => {
+  const t = document.getElementById('wmM');
+  ['cO', 'cG'].forEach((id, i) => {
+    const e = t.getExtentOfChar(i + 1);
+    document.getElementById(id).setAttribute('cx', (e.x + e.width / 2 + (i ? 2 : 0)).toFixed(1));
+  });
+});
+</script>
+</body>
+</html>
