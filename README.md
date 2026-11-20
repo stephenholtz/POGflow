@@ -8,7 +8,7 @@
 
 > Each pog says where its work stands, once. Every list of open work is printed from the pogs, never edited.
 
-That is all it does. It does not plan the work or make any decision for you. Designs stay in plans, what a repo needs you to know stays in its notes, and how the work inside a pog gets done is up to the session that holds it.
+That is all it does. It does not plan the work or make any decision for you. Designs stay in [plans](#pogs-and-plans), what a repo needs you to know stays in its notes, and how the work inside a pog gets done is up to the session that holds it.
 
 ## Why
 
@@ -60,9 +60,9 @@ State is `open`, `parked` (set aside) or `done`. To park or reopen a pog, change
 
 ## Pogs and plans
 
-A plan says what to build and why; a pog says where the work stands. Pogs are not tied to planning: a pog can be any scope. The cost is a few more files.
+A plan says what to build and why; a pog says where the work stands. A plan here is the kind Claude Code writes in plan mode: a Markdown file, written before the work starts. It is kept in the repo, under `plans/`. Pogs are not tied to planning: a pog can be any scope. The cost is a few more files.
 
-- **A plan holds no live status.** A plan's old status line is left alone until its work gets a pog. Then date it, stop updating it, and add a link to the pog.
+- **A plan holds no live status.** When a plan's work gets a pog, add a link to the pog in the plan. If the plan file has a status line, date it then and stop updating it. Until then, leave the line alone.
 - **A pog links to the plan it works toward,** if there is one. Several pogs can link to one plan. What is built is in their logs. Notes that grow long move to a plan.
 - **One player per pog.** The session that picks a pog up or makes it holds it. A session can hold several pogs, but a pog has one session at a time. Agents that session launches read the pog and do not write it.
 - **Split when a part would be picked up on its own,** or a second session needs it. Give that part its own pog, and say so in both logs.
