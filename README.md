@@ -22,7 +22,7 @@ That is all it does. It does not plan the work or make any decision for you, and
 
 ## A pog
 
-A pog is one file under `pogs/`, a flat folder at the top of your repo. The file is named for the work.
+A pog is one file under `pogs/`, a flat folder at the top of your repo. The file is named for the work. This one is `pogs/sorter-tags.md`, for tagging units in a spike sorter (a GUI that sorts recorded spikes into units, one per neuron):
 
 ```markdown
 # Unit tags in the spike sorter
@@ -89,22 +89,27 @@ Plans are Markdown files under `plans/`, like the ones Claude Code writes in pla
 ## Pogs and sessions
 
 - **One session per pog.** The session that makes a pog or picks it up holds it, until that session is closed or you have another one pick the pog up. A session can hold several pogs.
-- **Any session can take your answer.** If you answer a pog's question in a session that does not hold it, that session writes your answer into the pog, takes the question off the Waiting line and pushes.
+- **You can answer a pog's question in any session.** That session saves your answer in the pog, even if a different session holds that pog.
 - **A session asks before picking up a pog that may be in use.** If a different session wrote in the pog's log today, the new session asks you whether the other one is closed. If the other is still open, the new session leaves the pog alone unless you say otherwise.
-- **A pog can be split,** but only by the session that holds it, and only when you say so. A part that would be picked up on its own, or that a second session needs, gets its own pog. You and the session decide what goes into it.
+- **A pog can be split** when part of its work should go on separately, for example in a second session. Ask the session that holds the pog to split it. You and that session decide what moves to the new pog.
 
 ## Install
 
-The skills are for Claude Code. On each computer, clone this repo into your skills folder:
+The skills are for Claude Code.
 
-```sh
-git clone https://github.com/stephenholtz/POGflow ~/.claude/skills/pogflow
-```
+1. On each computer, clone this repo into your skills folder:
 
-New sessions then have `/stack`, `/pick-up` and `/slam`. If another command already uses a short name, the full ones are `/pogflow:stack` and so on. To update, run `git pull` in that folder. Make the `pogs/` folder in your repo yourself.
+   ```sh
+   git clone https://github.com/stephenholtz/POGflow ~/.claude/skills/pogflow
+   ```
+
+2. Make a `pogs/` folder in the repo that will hold the pogs.
+3. Give sessions permission to run `git commit` and `git push` there. Slam needs both.
+
+New sessions then have `/stack`, `/pick-up` and `/slam`. If another command already uses a short name, the full ones are `/pogflow:stack` and so on. To update, run `git pull` in `~/.claude/skills/pogflow`.
 
 - **Ask in plain words or type a command.** Making a pog, flip, park, reopen and split have no command of their own: say "make a pog for this", "flip it", "park it", "split that off".
-- **Slam needs permission to run `git commit` and `git push`.** POGflow commits only pog files, plus a plan when it adds a new pog's link there. Your other work is committed as before, when you say. The push also sends any commits already on that branch.
+- **POGflow commits only pog files,** plus a plan when it adds a new pog's link there. Your other work is committed as before, when you say. The push also sends any commits already on that branch.
 - **A session started in another repo** finds the meta repository's `pogs/` when that repo's own CLAUDE.md says where it is, for example "Open work is in `~/repos/meta/pogs/`".
 - **To have every new session print the stack,** say so in your CLAUDE.md.
 

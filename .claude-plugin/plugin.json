@@ -1,6 +1,6 @@
 {
   "name": "pogflow",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "POG Over Guesswork: skills for stack, pick up and slam",
   "author": { "name": "Stephen Holtz" },
   "repository": "https://github.com/stephenholtz/POGflow",
