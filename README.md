@@ -2,107 +2,111 @@
 
 # POGflow
 
-**POG Over Guesswork.** A small convention (shoehorned into 90s nostalgia) for keeping track of open work when several coding-agent sessions run side by side: one file per piece of work, so sessions do not collide in one shared status file.
+**POG Over Guesswork.** A small convention (shoehorned into 90s nostalgia) for keeping track of open work across coding-agent sessions, one after another or several at once.
+
+A session is one conversation with a coding agent, such as one Claude Code window. A new session does not know what the last one did, or what it was waiting on you for. Keeping one shared status file does not fix that: several sessions at once get in each other's way, and the file goes out of date.
+
+POGflow gives each piece of work its own file, a pog, that says where the work stands. You ask a session to make a pog or pick one up. From then on it keeps the pog saved and pushed on its own, so the next session, on any computer, carries on from there. It comes as three skills for Claude Code.
+
+It was designed for a meta repository: one repo you use to coordinate work across several others, holding the plans and the pogs for all of them. It works the same way inside a single repo. Either way it needs a branch that every session can push to directly, such as `main`: it does not work with a branch per session, or a protected one.
 
 **Status:** prototype
 
-> Each pog says where its work stands, once. Every list of open work is printed from the pogs, never edited.
+> Where a piece of work stands is written in its pog and nowhere else. Lists of open work are printed from the pogs, not kept by hand. A session makes or picks up a pog only when you ask, and the only files it commits on its own are pogs.
 
-That is all it does. It does not plan the work or make any decision for you. Designs stay in [plans](#pogs-and-plans), what a repo needs you to know stays in its notes, and how the work inside a pog gets done is up to the session that holds it.
+That is all it does. It does not plan the work or make any decision for you, and it is not an issue tracker. Next to tools you may already use:
 
-## Why
-
-When every session edits one status file, sessions overwrite each other and the file drifts from the work. With one file per piece of work, each session writes only its own, and a new session, the other computer, or you in two weeks can read where that work stands.
+- **[Plans](#pogs-and-plans)** say what to build. A pog says where that work stands.
+- **CLAUDE.md and memory** tell a session how to work in your repo. A pog tells it how far one piece of work has got.
+- **A handoff note or a shared status file:** a pog replaces both.
 
 ## A pog
 
-A pog is one piece of work: one file under `pogs/`, named for the work. `pogs/` is a flat folder beside `plans/` in the repo that holds your plans.
+A pog is one file under `pogs/`, a flat folder at the top of your repo. The file is named for the work.
 
 ```markdown
-# Dose-response figure
+# Unit tags in the spike sorter
 
 **State:** open
-**Tags:** twop
-**Waiting on Stephen:** pick the normalization, baseline or vehicle (2026-11-09)
-**Next:** the summary figure, once the normalization is set
+**Tags:** gui
+**Waiting on Stephen:** pick the tag rule, one tag per unit or several (2026-11-09)
+**Next:** the summary view, once the tag rule is set
 
 ## Log
-- 2026-11-09 lab 3f9c21ab (dose-response fits): fits converge; stopped for the normalization
-- 2026-11-02 lab 77e0b4d2 (dose-response setup): the sessions listed in the plan
+- 2026-11-09 desktop 3f9c21ab: tag buttons and keys work; stopped for the tag rule
+- 2026-11-09 desktop 3f9c21ab: made; first the tag buttons
 
 ## Notes
-Plan: `plans/dose-response.md`
+Plan: `plans/sorter-tags.md`
 
-**Q (2026-11-09):** normalize to baseline or to vehicle? **A:**
+**Q (2026-11-09):** can a unit take one tag, or several? **A:**
 ```
 
-Anything else that mentions the work points to the pog and does not restate it.
+The four lines under the title are the **face**: the State (`open`, `parked` or `done`), Tags for topics, what waits on you, and the next step. The Waiting label carries your name. The **log** gets a dated line whenever something happened, newest first, with the computer and the session that wrote it. **Notes** hold the rest: the plan link, and each question with its answer.
 
-## The words
+## Make, stack, pick up, slam, flip
 
-- **pog:** one piece of work, one file.
-  - **face:** the four lines under the title: State, Tags, Waiting, Next.
-  - **log:** dated lines under the face, newest first. Each names the machine and the session that wrote it, by an id that stays the same when the session is renamed, with its name at the time in brackets. A line is added only when something happened.
-  - **notes:** the rest of the file. The plan link goes here, and each question with its answer beside it, so rewriting the face loses nothing.
-- **stack:** the face of every open pog. With no work named, start here: pull, then print it:
-
-  ```sh
-  grep -r -A3 '^\*\*State:\*\* open' pogs/
-  ```
-
-  - **pick up:** pull, read the pog you are given, then carry on.
-- **slam:** at every stop, update the pog's face, add a log line, commit, push.
-- **flip:** when told to, set State to `done` and slam, whether the work was finished or dropped; the log line says which. The pog leaves the stack; the file stays as the record. Before a flip the session asks once whether anything in the notes should outlive the work: nothing, move it now into the repo's notes or plan, or later. Later keeps the pog open with that write-up as its Next, and it flips when the write-up is done.
-
-A stop is when the session waits on you, when you answer, and at the end. Slam each pog the session worked on, so a session that dies loses only its last stretch. An answer for a pog the session does not hold goes in that pog.
-
-State is `open`, `parked` (set aside) or `done`. To park or reopen a pog, change State and slam. Waiting lists what waits on you, each item with the date it was first asked; it is empty when nothing does. Its label carries your name: `Waiting on Stephen:` in the example. Tags group pogs by topic.
-
-## Pogs and plans
-
-A plan says what to build and why; a pog says where the work stands. A plan here is the kind Claude Code writes in plan mode: a Markdown file, written before the work starts. It is kept in the repo, under `plans/`. Pogs are not tied to planning: a pog can be any scope. The cost is a few more files.
-
-- **A plan holds no live status.** When a plan's work gets a pog, add a link to the pog in the plan. If the plan file has a status line, date it then and stop updating it. Until then, leave the line alone.
-- **A pog links to the plan it works toward,** if there is one. Several pogs can link to one plan. What is built is in their logs. Notes that grow long move to a plan.
-- **One player per pog.** The session that picks a pog up or makes it holds it. A session can hold several pogs, but a pog has one session at a time. Agents that session launches read the pog and do not write it.
-- **Split when a part would be picked up on its own,** or a second session needs it. Give that part its own pog, and say so in both logs.
-- **New work gets a pog when it starts.** A one-off, such as a typo fix, needs none.
+- **make:** you ask for a pog when new work starts, and the session writes the file. A session may suggest one. A one-off, such as a typo fix, needs none.
+- **stack:** a list of every open pog, those waiting on you first. Ask for it when you start with nothing in mind.
+- **pick up:** the session reads the pog you name and carries on from its next step.
+- **slam:** the session saves the pog. It pulls, updates the face and log, then commits and pushes the pog file. It does this on its own each time it hands back to you, with a question or with its work done, and again when you answer one of its questions, until you tell it not to. If it cannot push, it tells you.
+- **flip:** you say a pog is finished or dropped. The session asks once whether any of its notes are worth keeping. If so, it copies them into the repo's docs or the plan first, and the pog stays open until that is done. Then it sets State to `done`. The file stays as the record.
+- **park, reopen:** set a pog aside, or bring it back.
 
 ## An example
 
-**Monday, lab Mac.**
+Stephen starts new work, unit tags for a spike-sorting GUI:
+
+> **Stephen:** start on the unit tags in `plans/sorter-tags.md`, and make a pog for it.
+>
+> *(The session makes `pogs/sorter-tags.md`, links it from the plan, and adds the tag buttons. Stephen tries them in the GUI and says what to change.)*
+
+Then the session needs a decision. It writes the question in the pog, slams, and asks:
+
+> **Session:** can a unit take one tag, or several?
+
+The pog now reads as in [A pog](#a-pog) above. The next day, in a new session on the laptop:
 
 > **Stephen:** what's on the stack?
 >
-> **Session:** Nothing waits on you. Open: dose-response, next is the fits.
+> **Session:** One thing waits on you. sorter-tags: pick the tag rule, one tag per unit or several (2026-11-09).
 >
-> **Stephen:** pick up dose-response.
+> **Stephen:** pick up sorter-tags. One tag per unit.
+>
+> *(The session reads the pog, writes the answer in it and slams. It builds the summary view, and Stephen tries it.)*
+>
+> **Stephen:** looks right. Flip it.
 
-The session reads `pogs/dose-response.md` and runs the fits. They converge, but the next step needs a decision. The session writes the question in the notes and slams. The pog now reads as in [A pog](#a-pog) above. Later that session is closed.
+The session asks what in the notes to keep. Stephen says nothing needs keeping, and the session flips. sorter-tags is off the stack.
 
-**Wednesday, laptop. A new session that knows nothing.**
+## Pogs and plans
 
-> **Stephen:** pick up dose-response. Use vehicle.
+Plans are Markdown files under `plans/`, like the ones Claude Code writes in plan mode but kept in the repo. A pog does not need a plan, and it can be work of any size.
 
-It reads the pog, so it knows what was done and what was asked. It writes the answer beside the question and slams: Waiting is empty, and Next is the summary figure.
+- **Status goes in the pog, not the plan.** When a plan's work gets a pog, the session adds a link to the pog in the plan.
+- **A pog links to its plan,** if there is one. Several pogs can link to one plan. What was built is in their logs. When a pog's notes grow long, the session moves them to a plan.
 
-**Friday.**
+## Pogs and sessions
 
-> **Stephen:** the figure looks right. Flip it.
-
-The session asks whether anything in the notes should be kept; Stephen says the normalization choice belongs in the repo's notes. The session writes it there and flips. dose-response is off the stack.
+- **One session per pog.** The session that makes a pog or picks it up holds it, until that session is closed or you have another one pick the pog up. A session can hold several pogs.
+- **Any session can take your answer.** If you answer a pog's question in a session that does not hold it, that session writes your answer into the pog, takes the question off the Waiting line and pushes.
+- **A session asks before picking up a pog that may be in use.** If a different session wrote in the pog's log today, the new session asks you whether the other one is closed. If the other is still open, the new session leaves the pog alone unless you say otherwise.
+- **A pog can be split,** but only by the session that holds it, and only when you say so. A part that would be picked up on its own, or that a second session needs, gets its own pog. You and the session decide what goes into it.
 
 ## Install
 
-For Claude Code the tools are skills, in `skills/`. On each computer, clone this repo into your skills folder:
+The skills are for Claude Code. On each computer, clone this repo into your skills folder:
 
 ```sh
 git clone https://github.com/stephenholtz/POGflow ~/.claude/skills/pogflow
 ```
 
-New sessions then have `/stack`, `/pick-up` and `/slam`, and `git pull` there updates them. Their full names are `/pogflow:stack`, `/pogflow:pick-up` and `/pogflow:slam`, for when another command has the short one. A link to a clone you already have works too.
+New sessions then have `/stack`, `/pick-up` and `/slam`. If another command already uses a short name, the full ones are `/pogflow:stack` and so on. To update, run `git pull` in that folder. Make the `pogs/` folder in your repo yourself.
 
-Slam commits and pushes files under `pogs/` without asking each time. To start in a repo, make the `pogs/` folder yourself; the skills never make it. In a repo without one they do nothing unless you ask for them.
+- **Ask in plain words or type a command.** Making a pog, flip, park, reopen and split have no command of their own: say "make a pog for this", "flip it", "park it", "split that off".
+- **Slam needs permission to run `git commit` and `git push`.** POGflow commits only pog files, plus a plan when it adds a new pog's link there. Your other work is committed as before, when you say. The push also sends any commits already on that branch.
+- **A session started in another repo** finds the meta repository's `pogs/` when that repo's own CLAUDE.md says where it is, for example "Open work is in `~/repos/meta/pogs/`".
+- **To have every new session print the stack,** say so in your CLAUDE.md.
 
 ## Licence
 
